@@ -70,7 +70,7 @@ import Data.CallStack (HasCallStack)
 import Control.Exception
 
 -- | Turn an 'Assertion' into a tasty test case
-testCase :: TestName -> Assertion -> TestTree
+testCase :: HasCallStack => TestName -> Assertion -> TestTree
 testCase name = singleTest name . TestCase . (fmap (const ""))
 
 -- | Like 'testCase', except in case the test succeeds, the returned string

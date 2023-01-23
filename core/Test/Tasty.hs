@@ -69,6 +69,7 @@ import Test.Tasty.Runners
 import Test.Tasty.Options
 import Test.Tasty.Options.Core
 import Test.Tasty.Ingredients.Basic
+import Test.Tasty.Ingredients.ListTests (reportTestTree)
 
 -- | List of the default ingredients. This is what 'defaultMain' uses.
 --
@@ -76,7 +77,7 @@ import Test.Tasty.Ingredients.Basic
 --
 -- @since 0.4.2
 defaultIngredients :: [Ingredient]
-defaultIngredients = [listingTests, consoleTestReporter]
+defaultIngredients = [reportTestTree, listingTests, consoleTestReporter]
 
 -- | Parse the command line arguments and run the tests.
 --

@@ -272,7 +272,7 @@ createTestActions opts0 tree = do
           { foldSingle = runSingleTest
           , foldResource = addInitAndRelease
           , foldGroup = \_opts name (Traversal a) ->
-              Traversal $ mapWriterT (local (first (Seq.|> name))) a
+              Traversal $ mapWriterT (local (first (Seq.|> fst name))) a
           , foldAfter = \_opts deptype pat (Traversal a) ->
               Traversal $ mapWriterT (local (second ((deptype, pat) :))) a
           }
@@ -289,12 +289,12 @@ createTestActions opts0 tree = do
     Left cycles -> throwIO (DependencyLoop cycles)
 
   where
-    runSingleTest :: IsTest t => OptionSet -> TestName -> t -> Tr
+    runSingleTest :: IsTest t => OptionSet -> LocTestName -> t -> Tr
     runSingleTest opts name test = Traversal $ do
       statusVar <- liftIO $ atomically $ newTVar NotStarted
       (parentPath, deps) <- lift ask
       let
-        path = parentPath Seq.|> name
+        path = parentPath Seq.|> fst name
         act (inits, fins) =
           executeTest (run opts test) statusVar (lookupOption opts) inits fins
       tell ([(act, (statusVar, path, deps))], mempty)

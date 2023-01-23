@@ -2,6 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleContexts,
              ExistentialQuantification, RankNTypes, DeriveDataTypeable, NoMonomorphismRestriction,
              DeriveGeneric #-}
+{-# LANGUAGE TupleSections #-}
 module Test.Tasty.Core where
 
 import Control.Exception
@@ -18,6 +19,7 @@ import Data.Tagged
 import GHC.Generics
 import Prelude  -- Silence AMP and FTP import warnings
 import Text.Printf
+import GHC.Stack
 
 -- | If a test failed, 'FailureReason' describes why.
 --
@@ -186,6 +188,11 @@ class Typeable t => IsTest t where
 -- @since 0.1
 type TestName = String
 
+-- | The name of a test or a group of tests.
+--
+-- @since 0.1
+type LocTestName = (String, (String, SrcLoc))
+
 -- | 'ResourceSpec' describes how to acquire a resource (the first field)
 -- and how to release it (the second field).
 --
@@ -238,9 +245,9 @@ data DependencyType
 --
 -- @since 0.1
 data TestTree
-  = forall t . IsTest t => SingleTest TestName t
+  = forall t . (HasCallStack, IsTest t) => SingleTest LocTestName t
     -- ^ A single test of some particular type
-  | TestGroup TestName [TestTree]
+  | TestGroup LocTestName [TestTree]
     -- ^ Assemble a number of tests into a cohesive group
   | PlusTestOptions (OptionSet -> OptionSet) TestTree
     -- ^ Add some options to child tests
@@ -261,11 +268,14 @@ data TestTree
     --
     -- @since 1.2
 
+getCallerLoc :: HasCallStack => (String, SrcLoc)
+getCallerLoc = (!! 2) $ getCallStack callStack
+
 -- | Create a named group of test cases or other groups
 --
 -- @since 0.1
-testGroup :: TestName -> [TestTree] -> TestTree
-testGroup = TestGroup
+testGroup :: HasCallStack => TestName -> [TestTree] -> TestTree
+testGroup = TestGroup . (,getCallerLoc)
 
 -- | Like 'after', but accepts the pattern as a syntax tree instead
 -- of a string. Useful for generating a test tree programmatically.
@@ -349,8 +359,8 @@ after deptype s =
 --
 -- @since 0.7
 data TreeFold b = TreeFold
-  { foldSingle :: forall t . IsTest t => OptionSet -> TestName -> t -> b
-  , foldGroup :: OptionSet -> TestName -> b -> b
+  { foldSingle :: forall t . IsTest t => OptionSet -> LocTestName -> t -> b
+  , foldGroup :: OptionSet -> LocTestName -> b -> b
   -- ^ @since 1.4
   , foldResource :: forall a . OptionSet -> ResourceSpec a -> (IO a -> b) -> b
   , foldAfter :: OptionSet -> DependencyType -> Expr -> b -> b
@@ -414,11 +424,11 @@ foldTestTree (TreeFold fTest fGroup fResource fAfter) opts0 tree0 =
     go path opts tree1 =
       case tree1 of
         SingleTest name test
-          | testPatternMatches pat (path Seq.|> name)
+          | testPatternMatches pat (path Seq.|> fst name)
             -> fTest opts name test
           | otherwise -> mempty
         TestGroup name trees ->
-          fGroup opts name $ foldMap (go (path Seq.|> name) opts) trees
+          fGroup opts name $ foldMap (go (path Seq.|> fst name) opts) trees
         PlusTestOptions f tree -> go path (f opts) tree
         WithResource res0 tree -> fResource opts res0 $ \res -> go path opts (tree res)
         AskOptions f -> go path opts (f opts)

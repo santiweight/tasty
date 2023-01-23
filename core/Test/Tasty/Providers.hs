@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 -- | API for test providers.
 --
 -- @since 0.1
@@ -16,12 +17,13 @@ module Test.Tasty.Providers
 
 import Test.Tasty.Core
 import Test.Tasty.Providers.ConsoleFormat (ResultDetailsPrinter, noResultDetails)
+import GHC.Stack
 
 -- | Convert a test to a leaf of the 'TestTree'.
 --
 -- @since 0.1
-singleTest :: IsTest t => TestName -> t -> TestTree
-singleTest = SingleTest
+singleTest :: (HasCallStack, IsTest t) => TestName -> t -> TestTree
+singleTest = SingleTest . (,getCallerLoc)
 
 -- | 'Result' of a passed test.
 --

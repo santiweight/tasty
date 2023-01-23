@@ -123,14 +123,14 @@ buildTestOutput opts tree =
 
     runSingleTest
       :: (IsTest t, ?colors :: Bool)
-      => OptionSet -> TestName -> t -> Ap (Reader Level) TestOutput
+      => OptionSet -> LocTestName -> t -> Ap (Reader Level) TestOutput
     runSingleTest _opts name _test = Ap $ do
       level <- ask
 
       let
         printTestName = do
-          printf "%s%s: %s" (indent level) name
-            (replicate (alignment - indentSize * level - stringWidth name) ' ')
+          printf "%s%s: %s" (indent level) (fst name)
+            (replicate (alignment - indentSize * level - stringWidth (fst name)) ' ')
           hFlush stdout
 
         printTestResult result = do
@@ -156,15 +156,15 @@ buildTestOutput opts tree =
           case resultDetailsPrinter result of
             ResultDetailsPrinter action -> action level withConsoleFormat
 
-      return $ PrintTest name printTestName printTestResult
+      return $ PrintTest (fst name) printTestName printTestResult
 
-    runGroup :: OptionSet -> TestName -> Ap (Reader Level) TestOutput -> Ap (Reader Level) TestOutput
+    runGroup :: OptionSet -> LocTestName -> Ap (Reader Level) TestOutput -> Ap (Reader Level) TestOutput
     runGroup _opts name grp = Ap $ do
       level <- ask
       let
-        printHeading = printf "%s%s\n" (indent level) name
+        printHeading = printf "%s%s\n" (indent level) (fst name)
         printBody = runReader (getApp grp) (level + 1)
-      return $ PrintHeading name printHeading printBody
+      return $ PrintHeading (fst name) printHeading printBody
 
   in
     flip runReader 0 $ getApp $
@@ -676,7 +676,7 @@ computeAlignment opts =
   fromMonoid .
   foldTestTree
     trivialFold
-      { foldSingle = \_ name _ level -> Maximum (stringWidth name + level)
+      { foldSingle = \ _ name _ level -> Maximum (stringWidth (fst name) + level)
       , foldGroup = \_opts _ m -> m . (+ indentSize)
       }
     opts
